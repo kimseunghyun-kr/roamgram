@@ -1,1 +1,1 @@
-rootProject.name = "travelDiary"
+rootProject.name = "roamGram"

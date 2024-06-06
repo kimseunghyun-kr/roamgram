@@ -26,6 +26,6 @@ public class MediaFile {
 
     public String s3Key;
 
-    public Long contentLocation;
+    public MediaFileStatus mediaFileStatus;
 
 }

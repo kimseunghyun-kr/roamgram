@@ -8,7 +8,9 @@ import org.hibernate.annotations.Cascade;
 import org.hibernate.annotations.CascadeType;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -20,8 +22,9 @@ public class Schedule {
 
     private UUID TravelPlanId;
 
-    @OneToOne
-    @Cascade(CascadeType.ALL)
+    public String name;
+
+    @ManyToOne(fetch = FetchType.EAGER)
     public Place place;
 
     @OneToOne
@@ -30,15 +33,21 @@ public class Schedule {
 
     public Boolean isActuallyVisited;
 
-    public LocalDate travelDate;
 
-    public Integer orderOfTravel;
+    public LocalDateTime travelStartTimeEstimate;
 
-    public LocalTime travelStartTimeEstimate;
+    public LocalDateTime travelDepartTimeEstimate;
 
-    public LocalTime travelDepartTimeEstimate;
+    @OneToOne
+    @Cascade(CascadeType.ALL)
+    public Route inwardRoute;
 
-//    public Set<UserTags> travelCategory;
+    @OneToOne
+    @Cascade(CascadeType.ALL)
+    public Route outwardRoute;
 
+    @OneToMany
+    @Cascade(CascadeType.ALL)
+    public List<Activity> activities;
 
 }

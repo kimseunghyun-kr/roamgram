@@ -12,10 +12,7 @@ import software.amazon.awssdk.services.s3.presigner.model.*;
 
 import java.net.URL;
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 @Service
@@ -25,7 +22,7 @@ public class S3Service {
     private final S3Presigner s3Presigner;
 
     @Autowired
-    public S3Service(S3Client amazonS3Client, @Value("${aws.s3.bucket}") String bucketName, S3Presigner s3Presigner) {
+    public S3Service(S3Client amazonS3Client, @Value("${aws.s3.profile.bucket}") String bucketName, S3Presigner s3Presigner) {
         this.amazonS3Client = amazonS3Client;
         this.bucketName = bucketName;
         this.s3Presigner = s3Presigner;
@@ -52,8 +49,8 @@ public class S3Service {
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(objectKey)
-                .contentType(contentType)
-                .contentLength(contentLength)
+//                .contentType(contentType)
+//                .contentLength(contentLength)
                 .build();
 
         PutObjectPresignRequest putObjectPresignRequest = PutObjectPresignRequest.builder()
@@ -69,21 +66,13 @@ public class S3Service {
 
 
 
-    public URL createPresignedUrlForDelete(String objectKey) {
+    public DeleteObjectResponse deleteS3Object(String objectKey) {
         DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
                 .bucket(bucketName)
                 .key(objectKey)
                 .build();
 
-        DeleteObjectPresignRequest deleteObjectPresignRequest = DeleteObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofHours(1))
-                .deleteObjectRequest(deleteObjectRequest)
-                .build();
-
-        PresignedDeleteObjectRequest presignedDeleteObjectRequest = s3Presigner.presignDeleteObject(deleteObjectPresignRequest);
-
-
-        return presignedDeleteObjectRequest.url();
+        return amazonS3Client.deleteObject(deleteObjectRequest);
     }
 
     public URL createMultipartUploadRequest(String objectKey, String contentType) {

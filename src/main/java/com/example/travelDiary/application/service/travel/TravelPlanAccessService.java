@@ -1,11 +1,14 @@
 package com.example.travelDiary.application.service.travel;
 
+import com.example.travelDiary.application.service.travel.schedule.ScheduleQueryService;
 import com.example.travelDiary.domain.model.travel.TravelPlan;
-import com.example.travelDiary.domain.persistence.travel.TravelPlanRepository;
-import com.example.travelDiary.presentation.dto.request.TravelPlanUpsertRequestDTO;
+import com.example.travelDiary.domain.model.wallet.aggregate.MonetaryEvent;
+import com.example.travelDiary.repository.persistence.travel.TravelPlanRepository;
+import com.example.travelDiary.presentation.dto.request.travel.TravelPlanUpsertRequestDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -16,19 +19,20 @@ import java.util.UUID;
 public class TravelPlanAccessService {
     private final TravelPlanRepository travelPlanRepository;
     private final ConversionService conversionService;
-    private final ScheduleAccessService scheduleAccessService;
+    private final ScheduleQueryService scheduleQueryService;
 
     @Autowired
-    public TravelPlanAccessService(TravelPlanRepository travelPlanRepository, ConversionService conversionService, ScheduleAccessService scheduleAccessService) {
+    public TravelPlanAccessService(TravelPlanRepository travelPlanRepository, ConversionService conversionService, ScheduleQueryService scheduleQueryService) {
         this.travelPlanRepository = travelPlanRepository;
         this.conversionService = conversionService;
-        this.scheduleAccessService = scheduleAccessService;
+        this.scheduleQueryService = scheduleQueryService;
     }
 
     public Page<TravelPlan> getTravelPageContainingName(String name, int pageNumber, int pageSize) {
         PageRequest pageRequest = PageRequest.of(pageNumber, pageSize);
         return travelPlanRepository.findAllByNameContaining(name, pageRequest);
     }
+
     public TravelPlan getTravelPlan(UUID planId) {
         return travelPlanRepository.findById(planId).orElseThrow();
     }
@@ -51,8 +55,31 @@ public class TravelPlanAccessService {
         return travelPlan;
     }
 
-    private static void updateNonNullFields(TravelPlanUpsertRequestDTO request, TravelPlan travelPlan) {
-        // Map non-null fields from the request DTO to the entity
+    public TravelPlan importPlan (TravelPlan travelPlan) {
+        return travelPlanRepository.save(travelPlan);
+    }
+
+    public Page<MonetaryEvent> getAssociatedMonetaryEvent(UUID travelPlanId, PageRequest pageRequest) {
+        List<MonetaryEvent> monetaryEvents = travelPlanRepository
+                .findById(travelPlanId)
+                .orElseThrow()
+                .getScheduleList()
+                .stream()
+                .flatMap(schedule -> scheduleQueryService
+                        .getAssociatedMonetaryEvent(
+                                schedule
+                                        .getId()
+                        )
+                        .stream()
+                )
+                .toList();
+
+        return new PageImpl<>(monetaryEvents, pageRequest, monetaryEvents.size());
+
+    }
+
+    private void updateNonNullFields(TravelPlanUpsertRequestDTO request, TravelPlan travelPlan) {
+
         if (request.getEndDate() != null) {
             travelPlan.setTravelEndDate(request.getEndDate());
         }
@@ -63,6 +90,8 @@ public class TravelPlanAccessService {
             travelPlan.setName(request.getName());
         }
     }
-}
 
-//   travelPlan/{travelPlanId}/schedule/order/{order_number}
+    public List<TravelPlan> getAllTravelPlan() {
+        return travelPlanRepository.findAll();
+    }
+}

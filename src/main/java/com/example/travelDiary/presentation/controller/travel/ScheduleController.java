@@ -1,8 +1,17 @@
 package com.example.travelDiary.presentation.controller.travel;
 
-import com.example.travelDiary.application.service.travel.ScheduleAccessService;
+import com.example.travelDiary.application.service.location.PlaceMutationService;
+import com.example.travelDiary.application.service.travel.schedule.ScheduleMutationService;
+import com.example.travelDiary.application.service.travel.schedule.ScheduleQueryService;
+import com.example.travelDiary.domain.model.location.Place;
+import com.example.travelDiary.domain.model.travel.Route;
 import com.example.travelDiary.domain.model.travel.Schedule;
-import com.example.travelDiary.presentation.dto.request.ScheduleUpsertRequest;
+import com.example.travelDiary.presentation.dto.request.travel.location.PlaceUpdateRequest;
+import com.example.travelDiary.presentation.dto.request.travel.RouteUpdateRequest;
+import com.example.travelDiary.presentation.dto.request.travel.schedule.ScheduleInsertRequest;
+import com.example.travelDiary.presentation.dto.request.travel.schedule.ScheduleMetadataUpdateRequest;
+import com.example.travelDiary.repository.persistence.travel.TravelPlanRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,47 +20,74 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/travelPlan/{travelPlanId}/schedule")
+@Slf4j
 public class ScheduleController {
-    private final ScheduleAccessService scheduleAccessService;
+    private final ScheduleMutationService scheduleMutationService;
+    private final TravelPlanRepository travelPlanRepository;
+    private final PlaceMutationService placeMutationService;
+    private final ScheduleQueryService scheduleQueryService;
 
-    public ScheduleController(ScheduleAccessService scheduleAccessService) {
-        this.scheduleAccessService = scheduleAccessService;
+    public ScheduleController(ScheduleMutationService scheduleMutationService, TravelPlanRepository travelPlanRepository, PlaceMutationService placeMutationService, ScheduleQueryService scheduleQueryService) {
+        this.scheduleMutationService = scheduleMutationService;
+        this.travelPlanRepository = travelPlanRepository;
+        this.placeMutationService = placeMutationService;
+        this.scheduleQueryService = scheduleQueryService;
     }
 
-    @PostMapping("/create_schedule")
-    public Schedule createSchedule(@PathVariable("travelPlanId") UUID travelPlanId, @RequestBody ScheduleUpsertRequest request) {
-        return scheduleAccessService.createSchedule(travelPlanId, request);
+    @PutMapping("/create_schedule")
+    public Schedule createSchedule(@PathVariable("travelPlanId") UUID travelPlanId, @RequestBody ScheduleInsertRequest request) {
+        Schedule schedule = scheduleMutationService.createSchedule(travelPlanId, request);
+        travelPlanRepository.findById(travelPlanId).ifPresent(travelPlan -> {travelPlan.getScheduleList().add(schedule);});
+        return schedule;
     }
 
-    @PatchMapping("/modify_schedule")
-    public Schedule modifySchedule(@PathVariable(value = "travelPlanId") UUID travelPlanId, @RequestBody ScheduleUpsertRequest request) {
-        return scheduleAccessService.modifySchedule(request);
+    @PatchMapping("/update_schedule_metadata")
+    public Schedule modifySchedule(@PathVariable(value = "travelPlanId") UUID travelPlanId, @RequestBody ScheduleMetadataUpdateRequest request) {
+        return scheduleMutationService.updateScheduleMetadata(request);
     }
 
     @DeleteMapping("/delete_schedule")
     public UUID deleteSchedule(@PathVariable(value = "travelPlanId") UUID travelPlanId, @RequestParam(value="scheduleId") UUID scheduleId) {
-        return scheduleAccessService.deleteSchedule(scheduleId);
+        return scheduleMutationService.deleteSchedule(travelPlanId, scheduleId);
     }
 
-    @GetMapping("/search_by_name")
+    @GetMapping("/search_schedule_by_place_name")
     public Page<Schedule> getScheduleContainingPlaceName(@PathVariable(value = "travelPlanId") UUID travelPlanId,
                                               @RequestParam(value="name") String name,
                                               @RequestParam(value="pageNumber") Integer pageNumber,
                                               @RequestParam(value="pageSize") Integer pageSize) {
-        return scheduleAccessService.getScheduleContainingName(name, pageNumber, pageSize);
+        return scheduleQueryService.getScheduleContainingName(name, pageNumber, pageSize);
     }
 
-    @GetMapping("/search_by_day")
+    @GetMapping("/search_schedule_by_day")
     public Page<Schedule> getScheduleOnDay(@PathVariable(value = "travelPlanId") UUID travelPlanId,
                                            @RequestParam LocalDate date,
                                            @RequestParam Integer pageNumber,
                                            @RequestParam Integer pageSize) {
-        return scheduleAccessService.getSchedulesOnGivenDay(date, pageNumber, pageSize);
+        log.info("search schedule by day reached");
+        return scheduleQueryService.getSchedulesOnGivenDay(date, pageNumber, pageSize);
     }
 
     @GetMapping("/search_schedule")
     public Schedule getSchedule(@PathVariable(value = "travelPlanId") UUID travelPlanId, @RequestParam(value = "scheduleId") UUID scheduleId) {
-        return scheduleAccessService.getSchedule(scheduleId);
+        return scheduleQueryService.getSchedule(scheduleId);
+    }
+
+    //update PLACE
+    @PatchMapping("/update_all_linked_place")
+    public Place modifyPlaceOnAllLinkedSchedule (@PathVariable(value = "travelPlanId") UUID travelPlanId, @RequestBody PlaceUpdateRequest request) {
+        return placeMutationService.updatePlace(request);
+    }
+
+    @PatchMapping("/update_place_on_schedule")
+    public Schedule reassignPlaceOnSchedule (@PathVariable(value = "travelPlanId") UUID travelPlanId, @RequestBody PlaceUpdateRequest request) {
+        return scheduleMutationService.reassignPlace(request.scheduleId, request);
+    }
+
+    //update Route
+    @PatchMapping("/udpate_route_details")
+    public Route updateRoute(@PathVariable(value = "travelPlanId") UUID travelPlanId, @RequestBody RouteUpdateRequest request) {
+        return scheduleMutationService.updateRouteDetails(request);
     }
 
 
